@@ -1,2 +1,5 @@
 streamlit
 reportlab
+openpyxl
+pandas
+numpy
