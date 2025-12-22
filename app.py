@@ -313,10 +313,10 @@ def main():
         TOP_PAGES[st.session_state["quick_page"]].render()
 
         # Optional: back button to go to normal calculators
-        if st.sidebar.button("⬅ Back to Calculators", use_container_width=True):
+    if st.sidebar.button("⬅ Back to Calculators", use_container_width=True):
             st.session_state["quick_page"] = None
             st.rerun()
-        return
+    return
 
     st.sidebar.divider()
 
