@@ -1,4 +1,10 @@
 import streamlit as st 
+from pathlib import Path
+import base64
+
+ASSETS = Path(__file__).parent / "assets"
+APP_LOGO = ASSETS / "app_logo.png"
+DC_LOGO  = ASSETS / "doorsconnect_logo.png"
 
 from ui.quantity_n_material.concrete import (
     concrete_ui, circle_tank_page, concrete_wall_page, dam_body_page, 
@@ -42,12 +48,12 @@ from ui.advanced_utilities.road_drainage import box_culvert, curve_asphalt, gabi
 from ui.advanced_utilities.stair_foundation import plumb_concrete, stair_geometry
 
 from ui.metal.steel_weights import (
-    angle_page, beam_bar_page, channel_page, flat_page, hex_bar_page, round_bar_page, round_pipe_page, sheet_page,
+    angle_page1, beam_bar_page, channel_page, flat_page, hex_bar_page, round_bar_page, round_pipe_page1, sheet_page,
     square_bar_page, square_tubing_page, tee_bar_page
 )
 
 from ui.volume.solid_geometrys import (
-    cone_page, cube_page, cylinder_page, frustum_page, half_sphere_page, parabolic_cone_page, prism_page, rectangle_tank_page,
+    cone_page, cube_page, cylinder_page, frustum_page, half_sphere_page, parabolic_cone_page, prism_page, rectangle_tank_page1,
     rectangular_prism_page, sphere_page, trapezoid_dumper_page, triangle_dumper_page
 )
 
@@ -64,7 +70,7 @@ from ui.measurement.land_area_converter import land_area_converter_page
 
 from ui.measurement.perimter import perimeter_page
 
-from ui.measurement. shuttering_area_tools import shuttering_page
+from ui.measurement.shuttering_area_tools import shuttering_page
 
 from ui.boq import boq_page
 
@@ -95,8 +101,8 @@ MENUS = {
             "Circle Tank Concrete": circle_tank_page,
             "Dam Body Concrete": dam_body_page,
             "Retaining Wall Concrete": retaining_wall_page,
-            "Round Pipe Concrete": round_pipe_page,
-            "Rectangle Tank Concrete": rectangle_tank_page,
+            "Round Pipe Concrete": round_pipe_page1,
+            "Rectangle Tank Concrete": rectangle_tank_page1,
             "Concrete Wall": concrete_wall_page
         },
         
@@ -125,7 +131,7 @@ MENUS = {
         
         "Soil Mechanics": {
             "Dry Unit Weight": dry_unit_weight_page,
-            "Moisture Unit Weight": modulus_elasticity_concrete_page,
+            "Moisture Unit Weight": moisture_unit_weight_page,
             "Saturated Unit Weight": saturated_unit_weight_page,
             "Bearing Capacity (Circular)": bc_circular_page,
             "Bearing Capacity (Continuous)": bc_continuous_page,
@@ -205,13 +211,13 @@ MENUS = {
         "Steel Weights": {
             "Round Bar": round_bar_page,
             "Square Bar": square_bar_page,
-            "Round Pipe": round_pipe_page,
+            "Round Pipe": round_pipe_page1,
             "Hexagonal Bar": hex_bar_page,
             "Square Tubing": square_tubing_page,
             "Tee Bar": tee_bar_page,
             "Beam Bar": beam_bar_page,
             "Channel": channel_page,
-            "Angle": angle_page,
+            "Angle": angle_page1,
             "Flat": flat_page,
             "Sheet": sheet_page
         }
@@ -221,7 +227,7 @@ MENUS = {
         "Solid Geometrys": {
             "Rectangular Prism": rectangular_prism_page,
             "Cylinder": cylinder_page,
-            "Rectangle Tank": rectangle_tank_page,
+            "Rectangle Tank": rectangle_tank_page1,
             "Triangle Dumper": triangle_dumper_page,
             "Trapezoid Dumper": trapezoid_dumper_page,
             "Sphere":sphere_page,
@@ -255,7 +261,7 @@ MENUS = {
     
     "Conversion": {
         "Unit Conversion": {
-            "Angle": angle_page,
+            "Angle": angle_page1,
             "Area": area_page,
             "Data": data_page,
             "Force": force_page,
@@ -292,34 +298,78 @@ TOP_PAGES = {
     "BOQ": boq_page,
 }
 
+def img_to_base64(path):
+    with open(path, "rb") as f:
+        return base64.b64encode(f.read()).decode()
+    
+    
+def sidebar_branding():
+    st.markdown(
+        """
+        <style>
+        section[data-testid="stSidebar"] img {
+            margin-top: 0px !important;
+            margin-bottom: 0px !important;
+        }
+        section[data-testid="stSidebar"] h1,
+        section[data-testid="stSidebar"] h2,
+        section[data-testid="stSidebar"] h3,
+        section[data-testid="stSidebar"] p {
+            margin-top: 0px !important;
+            margin-bottom: 0px !important;
+        }
+        section[data-testid="stSidebar"] hr {
+            margin: 0px !important;
+
+        }
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
+
+    st.sidebar.image(str(DC_LOGO), width=100)
+     # --- Sidebar layout fix (footer stick to bottom) ---
+def sidebar_doorsconnect_main():
+    if APP_LOGO.exists():
+        st.image(str(APP_LOGO), width=36)
+        st.markdown("**Engineer's ToolBox**")
+        
+        
+    
+    
 def main():
     st.set_page_config(page_title="Engineer's Toolbox", layout="wide")
-
-    st.sidebar.title("Engineer's Toolbox")
-
+    sidebar_branding()
+    st.sidebar.title("Powered By Doors Connect")
+    st.sidebar.divider()
+    sidebar_doorsconnect_main()
     # -----------------------------
     # ✅ BOQ button under title
     # -----------------------------
     if "quick_page" not in st.session_state:
         st.session_state["quick_page"] = None
 
-    boq_clicked = st.sidebar.button("📋 BOQ", use_container_width=True)
-    if boq_clicked:
-        st.session_state["quick_page"] = "BOQ"
+    
+    # 👉 SHOW BOQ BUTTON ONLY IN CALCULATOR MODE
+    if st.session_state["quick_page"] is None:
+        if st.sidebar.button("📋 BOQ", use_container_width=False):
+            st.session_state["quick_page"] = "BOQ"
+            st.rerun()
 
-    # If BOQ (or any top page) is selected, render it and stop normal menu
+
+# 👉 IF IN BOQ MODE
     if st.session_state["quick_page"] in TOP_PAGES:
-        st.caption(f"BOQ")
-        TOP_PAGES[st.session_state["quick_page"]].render()
+        st.caption("BOQ")
+        TOP_PAGES["BOQ"].render()
 
-        # Optional: back button to go to normal calculators
-    if st.sidebar.button("⬅ Back to Calculators", use_container_width=True):
+    # Show BACK button only in BOQ mode
+        if st.sidebar.button("⬅ Back to Calculators", use_container_width=False):
             st.session_state["quick_page"] = None
             st.rerun()
-    return
+            
 
-    st.sidebar.divider()
-
+    
+        
 
     # 1️⃣ Main menu
     main_menu = st.sidebar.selectbox(
@@ -340,6 +390,8 @@ def main():
         "Calculator",
         options=list(calculators.keys()),
     )
+    
+    
 
     # Get the selected page module
     page_module = calculators[calculator_name]
@@ -349,7 +401,8 @@ def main():
 
     # Call the page's render() function
     page_module.render()
-
+    
+    return
 
 if __name__ == "__main__":
     main()

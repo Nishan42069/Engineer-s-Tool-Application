@@ -1,5 +1,5 @@
 import streamlit as st
-from calculators.volume.solid_geometrys.rectangle_tank import RectangleTankInput, calculate_rectangle_tank
+from calculators.volume.solid_geometrys.rectangle_tank1 import RectangleTankInput, calculate_rectangle_tank
 
 def render():
     st.header("Rectangle Tank Capacity")

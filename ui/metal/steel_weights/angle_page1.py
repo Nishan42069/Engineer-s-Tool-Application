@@ -1,5 +1,5 @@
 import streamlit as st
-from calculators.metal.steel_weights.angle import AngleInput, calculate_angle
+from calculators.metal.steel_weights.angle1 import AngleInput, calculate_angle
 
 def render():
     st.header("Angle Weight (L-Section)")
