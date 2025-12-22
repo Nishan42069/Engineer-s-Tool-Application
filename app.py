@@ -340,9 +340,10 @@ def sidebar_doorsconnect_main():
 def main():
     st.set_page_config(page_title="Engineer's Toolbox", layout="wide")
     sidebar_branding()
+    sidebar_doorsconnect_main()
     st.sidebar.title("Powered By Doors Connect")
     st.sidebar.divider()
-    sidebar_doorsconnect_main()
+    
     # -----------------------------
     # ✅ BOQ button under title
     # -----------------------------
@@ -351,25 +352,24 @@ def main():
 
     
     # 👉 SHOW BOQ BUTTON ONLY IN CALCULATOR MODE
-    if st.session_state["quick_page"] is None:
-        if st.sidebar.button("📋 BOQ", use_container_width=False):
-            st.session_state["quick_page"] = "BOQ"
-            st.rerun()
-
-
-# 👉 IF IN BOQ MODE
-    if st.session_state["quick_page"] in TOP_PAGES:
-        st.caption("BOQ")
-        TOP_PAGES["BOQ"].render()
-
-    # Show BACK button only in BOQ mode
+    if st.session_state["quick_page"] == "BOQ":
         if st.sidebar.button("⬅ Back to Calculators", use_container_width=False):
             st.session_state["quick_page"] = None
             st.rerun()
+
+
+
+        TOP_PAGES["BOQ"].render()
+        
+        return
+
+    # Show BACK button only in BOQ mode
+    if st.sidebar.button("📋 BOQ", use_container_width=False):
+            st.session_state["quick_page"] = "BOQ"
+            st.rerun()
             
 
-    
-        
+
 
     # 1️⃣ Main menu
     main_menu = st.sidebar.selectbox(
@@ -391,7 +391,6 @@ def main():
         options=list(calculators.keys()),
     )
     
-    
 
     # Get the selected page module
     page_module = calculators[calculator_name]
@@ -402,7 +401,6 @@ def main():
     # Call the page's render() function
     page_module.render()
     
-    return
 
 if __name__ == "__main__":
     main()
