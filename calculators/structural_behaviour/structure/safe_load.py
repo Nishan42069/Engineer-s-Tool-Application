@@ -1,29 +1,45 @@
 from dataclasses import dataclass
-import math
-
-FT_TO_M = 0.3048
+from calculators.structural_behaviour.structure.column_buckling import (
+    ColumnBucklingInput,
+    calculate_column_buckling,
+)
 
 @dataclass
-class ColumnBucklingInput:
+class SafeLoadInput:
     length_ft: float
     diameter_ft: float
-    E_gpa: float = 200.0          # Steel default. Use 25–30 for RCC if you want.
-    k_factor: float = 1.0         # 1.0 pinned-pinned, 0.5 fixed-fixed, 2.0 cantilever, 0.7 fixed-pinned
+    E_gpa: float = 200.0
+    k_factor: float = 1.0
+    safety_factor: float = 1.5
 
 @dataclass
-class ColumnBucklingOutput:
+class SafeLoadOutput:
     Pcr_kN: float
+    Psafe_kN: float
+    safety_factor: float
 
-def calculate_column_buckling(i: ColumnBucklingInput) -> ColumnBucklingOutput:
-    L = i.length_ft * FT_TO_M
-    d = i.diameter_ft * FT_TO_M
-
-    if L <= 0 or d <= 0:
+def calculate_safe_load(i: SafeLoadInput) -> SafeLoadOutput:
+    if i.length_ft <= 0 or i.diameter_ft <= 0:
         raise ValueError("Length and diameter must be > 0.")
+    if i.E_gpa <= 0:
+        raise ValueError("E_gpa must be > 0.")
+    if i.k_factor <= 0:
+        raise ValueError("k_factor must be > 0.")
+    if i.safety_factor <= 0:
+        raise ValueError("Safety factor must be > 0.")
 
-    E = i.E_gpa * 1e9  # Pa
-    I = (math.pi * d**4) / 64.0
-    Le = i.k_factor * L
+    buckling_out = calculate_column_buckling(
+        ColumnBucklingInput(
+            length_ft=i.length_ft,
+            diameter_ft=i.diameter_ft,
+            E_gpa=i.E_gpa,
+            k_factor=i.k_factor,
+        )
+    )
 
-    Pcr_N = (math.pi**2 * E * I) / (Le**2)
-    return ColumnBucklingOutput(Pcr_kN=Pcr_N / 1000.0)
+    psafe = buckling_out.Pcr_kN / i.safety_factor
+    return SafeLoadOutput(
+        Pcr_kN=buckling_out.Pcr_kN,
+        Psafe_kN=psafe,
+        safety_factor=i.safety_factor,
+    )
