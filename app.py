@@ -24,7 +24,7 @@ from ui.quantity_n_material.soil_mechanics import (
 )
 
 from ui.quantity_n_material.other_quantities import (
-    anti_termite_page, asphalt_page, bed_excavation_page, bed_filling_page, boq_pad_page, concrete_test_page, depth_foundation_page,
+    anti_termite_page, asphalt_page, bed_excavation_page, bed_filling_page, concrete_test_page, depth_foundation_page,
     diagonal_page, floor_bricks_page, formwork_slab_page, helix_bar_page, plaster_page, rebar_straight_page, slope_filling_page,
     super_elevation_page, terrazzo_page, tiles_page, water_tank_rect_page, paint_page
 )
@@ -101,8 +101,8 @@ MENUS = {
             "Circle Tank Concrete": circle_tank_page,
             "Dam Body Concrete": dam_body_page,
             "Retaining Wall Concrete": retaining_wall_page,
-            "Round Pipe Concrete": round_pipe_page1,
-            "Rectangle Tank Concrete": rectangle_tank_page1,
+            "Round Pipe Concrete": round_pipe_page,
+            "Rectangle Tank Concrete": rectangle_tank_page,
             "Concrete Wall": concrete_wall_page
         },
         
@@ -122,7 +122,6 @@ MENUS = {
             "Reinforcement Steel Calculation": rebar_straight_page,
             "Formwork": formwork_slab_page,
             "Water Tank Calculation": water_tank_rect_page,
-            "BOQ Pad": boq_pad_page,
             "Diagonal": diagonal_page,
             "Depth of Foundation": depth_foundation_page,
             "Concrete Test (Cube Test)": concrete_test_page
