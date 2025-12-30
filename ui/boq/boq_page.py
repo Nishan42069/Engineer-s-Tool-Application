@@ -12,7 +12,6 @@ from calculators.boq.boq import (
     total_amount,
 )
 
-# Optional PDF export (ReportLab)
 from reportlab.lib.pagesizes import A4, landscape
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
 from reportlab.lib import colors
@@ -30,7 +29,9 @@ def _df_to_excel_bytes(
     grand_total: float,
 ) -> bytes:
     out = io.BytesIO()
-    clean = df[["S.N.", "Description", "Unit", "Qty", "Rate", "Amount"]].copy()
+
+    # ✅ Remarks next to Amount
+    clean = df[["S.N.", "Description", "Unit", "Qty", "Rate", "Amount", "Remarks"]].copy()
 
     with pd.ExcelWriter(out, engine="openpyxl") as writer:
         meta_df = pd.DataFrame(
@@ -83,22 +84,29 @@ def _df_to_pdf_bytes(
     story.append(Paragraph(f"<b>Date:</b> {meta.date_str}", styles["Normal"]))
     story.append(Spacer(1, 10))
 
-    clean = df[["S.N.", "Description", "Unit", "Qty", "Rate", "Amount"]].copy()
+    # ✅ Remarks next to Amount
+    clean = df[["S.N.", "Description", "Unit", "Qty", "Rate", "Amount", "Remarks"]].copy()
 
     data = [list(clean.columns)]
     for _, r in clean.iterrows():
         data.append(
             [
                 str(int(r["S.N."])) if str(r["S.N."]).strip() else "",
-                str(r["Description"])[:120],
+                str(r["Description"])[:110],
                 str(r["Unit"]),
                 f'{float(r["Qty"]):.3f}',
                 f'{float(r["Rate"]):.3f}',
                 f'{float(r["Amount"]):.3f}',
+                str(r["Remarks"])[:70],
             ]
         )
 
-    tbl = Table(data, repeatRows=1, colWidths=[40, 420, 70, 80, 80, 90])
+    # Column widths for: SN, Desc, Unit, Qty, Rate, Amount, Remarks
+    tbl = Table(
+        data,
+        repeatRows=1,
+        colWidths=[38, 340, 60, 70, 70, 80, 160],
+    )
     tbl.setStyle(
         TableStyle(
             [
@@ -107,7 +115,7 @@ def _df_to_pdf_bytes(
                 ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
                 ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
                 ("ALIGN", (0, 0), (0, -1), "CENTER"),
-                ("ALIGN", (2, 1), (-1, -1), "RIGHT"),
+                ("ALIGN", (2, 1), (5, -1), "RIGHT"),
             ]
         )
     )
@@ -154,7 +162,6 @@ def render():
         st.session_state["boq_snapshot_hash"] = ""
         st.session_state["boq_last_calc_hash"] = ""
 
-    # Defaults for contractor fields
     if "boq_vat_pct" not in st.session_state:
         st.session_state["boq_vat_pct"] = 0.0
     if "boq_profit_pct" not in st.session_state:
@@ -162,15 +169,19 @@ def render():
 
     df: pd.DataFrame = st.session_state["boq_df"]
 
-    # Hash only what the user can edit
+    # Backward compatibility: older session df may not have Remarks
+    if "Remarks" not in df.columns:
+        df = df.copy()
+        df["Remarks"] = ""
+        st.session_state["boq_df"] = df
+
     def _hash_editable(d: pd.DataFrame, vat_pct: float, profit_pct: float) -> str:
-        clean = d[["Description", "Unit", "Qty", "Rate"]].copy()
+        clean = d[["Description", "Remarks", "Unit", "Qty", "Rate"]].copy()
         base = str(pd.util.hash_pandas_object(clean, index=False).sum())
         return base + f"|vat={float(vat_pct):.6f}|profit={float(profit_pct):.6f}"
 
-    # Hash full calc outputs (to detect when Amount/internal changes)
     def _hash_calc(d: pd.DataFrame) -> str:
-        clean = d[["Description", "Unit", "Qty", "Rate", "Amount", "_QtyBase", "_UnitPrev", "_QtyPrev"]].copy()
+        clean = d[["Description", "Remarks", "Unit", "Qty", "Rate", "Amount", "_QtyBase", "_UnitPrev", "_QtyPrev"]].copy()
         return str(pd.util.hash_pandas_object(clean, index=False).sum())
 
     # -----------------------------
@@ -179,7 +190,9 @@ def render():
     st.subheader("BOQ Items")
 
     units = list_units()
-    visible_cols = ["S.N.", "Description", "Unit", "Qty", "Rate", "Amount"]
+
+    # ✅ Remarks appears right after Amount
+    visible_cols = ["S.N.", "Description", "Unit", "Qty", "Rate", "Amount", "Remarks"]
     editor_df = df[visible_cols].copy()
 
     edited_visible = st.data_editor(
@@ -195,28 +208,28 @@ def render():
             "Qty": st.column_config.NumberColumn("Quantity", min_value=0.0, step=0.01, format="%.3f", width="small"),
             "Rate": st.column_config.NumberColumn("Rate per unit", min_value=0.0, step=0.01, format="%.3f", width="small"),
             "Amount": st.column_config.NumberColumn("Amount", disabled=True, format="%.3f", width="small"),
+            "Remarks": st.column_config.TextColumn("Remarks", width="medium"),
         },
     )
 
     # Merge edited visible columns back into full df
     working = df.copy()
-    for col in ["Description", "Unit", "Qty", "Rate"]:
+    for col in ["Description", "Remarks", "Unit", "Qty", "Rate"]:
         working[col] = edited_visible[col]
 
     working = apply_unit_qty_rules(working)
     working = recalc_amounts(working)
 
-    # Save df
     st.session_state["boq_df"] = working
 
-    # Force a rerun once when calc outputs changed (amount updates)
+    # Force rerun once when calc outputs changed (avoids delayed amount updates)
     calc_hash = _hash_calc(working)
     if st.session_state.get("boq_last_calc_hash") != calc_hash:
         st.session_state["boq_last_calc_hash"] = calc_hash
         st.rerun()
 
     # -----------------------------
-    # Contractor inputs (AFTER table, BEFORE finalize button)
+    # Contractor inputs (AFTER table, BEFORE finalize)
     # -----------------------------
     st.divider()
     st.subheader("Contractor Add-ons")
@@ -240,7 +253,6 @@ def render():
     st.session_state["boq_vat_pct"] = float(vat_pct)
     st.session_state["boq_profit_pct"] = float(profit_pct)
 
-    # Totals
     subtotal = total_amount(working)
     profit_amt = subtotal * (float(profit_pct) / 100.0)
     vat_base = subtotal + profit_amt
@@ -253,15 +265,13 @@ def render():
     m3.metric("VAT Amount", f"{vat_amt:,.3f}")
     m4.metric("Grand Total", f"{grand_total:,.3f}")
 
-    # -----------------------------
-    # Auto-unfinalize if anything editable changed (df or vat/profit)
-    # -----------------------------
+    # Auto-unfinalize if user changes table/remarks/vat/profit
     editable_hash = _hash_editable(working, vat_pct, profit_pct)
     if st.session_state.get("boq_finalized") and st.session_state.get("boq_snapshot_hash") != editable_hash:
         st.session_state["boq_finalized"] = False
 
     # -----------------------------
-    # Finalize (button is AFTER inputs)
+    # Finalize
     # -----------------------------
     st.divider()
 
@@ -284,7 +294,8 @@ def render():
     st.subheader("Export")
 
     excel_bytes = _df_to_excel_bytes(
-        working, meta,
+        working,
+        meta,
         vat_pct=float(vat_pct),
         profit_pct=float(profit_pct),
         subtotal=float(subtotal),
@@ -301,7 +312,8 @@ def render():
     )
 
     pdf_bytes = _df_to_pdf_bytes(
-        working, meta,
+        working,
+        meta,
         vat_pct=float(vat_pct),
         profit_pct=float(profit_pct),
         subtotal=float(subtotal),
@@ -318,7 +330,7 @@ def render():
     )
 
     # -----------------------------
-    # WhatsApp share (message link)
+    # WhatsApp share
     # -----------------------------
     st.subheader("Share")
 

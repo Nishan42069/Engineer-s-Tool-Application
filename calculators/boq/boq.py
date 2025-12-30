@@ -1,16 +1,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict, Tuple, Optional
+from typing import Dict, Tuple
 import pandas as pd
 
 
 # -----------------------------
 # Unit system (simple but solid)
 # -----------------------------
-# We keep a "base quantity" per row, so if user changes unit, we can convert
-# while preserving the physical quantity.
-#
 # category: length / area / volume / mass / count / time / lump
 # base units:
 # length -> m
@@ -21,7 +18,7 @@ import pandas as pd
 # time   -> hr
 # lump   -> ls (lumpsum)
 #
-# factor is "how many base units in 1 unit".
+# factor = how many base units in 1 unit
 UNITS: Dict[str, Tuple[str, float]] = {
     # COUNT / NOS
     "No.": ("count", 1.0),
@@ -39,7 +36,7 @@ UNITS: Dict[str, Tuple[str, float]] = {
     "km": ("length", 1000.0),
     "ft": ("length", 0.3048),
     "in": ("length", 0.0254),
-    "Rft": ("length", 0.3048),   # running feet
+    "Rft": ("length", 0.3048),
     "Running ft": ("length", 0.3048),
 
     # AREA
@@ -76,7 +73,6 @@ UNITS: Dict[str, Tuple[str, float]] = {
     "day": ("time", 24.0),
 }
 
-
 DEFAULT_UNIT = "m³"
 
 
@@ -109,12 +105,9 @@ def convert_value(value: float, u_from: str, u_to: str) -> float:
     if u_from == u_to:
         return float(value)
     if not can_convert(u_from, u_to):
-        # different categories => do not auto convert, keep same number
         return float(value)
 
-    # value_in_base = value * factor_from
     base = float(value) * unit_factor(u_from)
-    # value_in_to = base / factor_to
     return base / unit_factor(u_to)
 
 
@@ -131,11 +124,11 @@ class BOQMeta:
 def new_boq_df(n_rows: int = 40) -> pd.DataFrame:
     """
     Creates a BOQ table with internal columns for unit conversion.
-    - sn: display only (not editable)
-    - qty: user-facing quantity in current unit
-    - qty_base: internal physical quantity in base unit
-    - unit: current unit
-    - unit_base: the unit used as base representation per category
+    - S.N.: display only (not editable)
+    - Description / Remarks: user text
+    - Unit / Qty / Rate: user-facing
+    - Amount: auto Qty * Rate
+    - _QtyBase / _UnitPrev / _QtyPrev: internal trackers
     """
     rows = []
     for i in range(n_rows):
@@ -146,9 +139,10 @@ def new_boq_df(n_rows: int = 40) -> pd.DataFrame:
                 "Unit": DEFAULT_UNIT,
                 "Qty": 0.0,
                 "Rate": 0.0,
-                "Amount": 0.0,      # Qty * Rate
-                "_QtyBase": 0.0,    # internal base quantity
-                "_UnitPrev": DEFAULT_UNIT,  # internal for diff tracking
+                "Amount": 0.0,
+                "Remarks": "",  # ✅ included in logic (order in UI handled separately)
+                "_QtyBase": 0.0,
+                "_UnitPrev": DEFAULT_UNIT,
                 "_QtyPrev": 0.0,
             }
         )
@@ -157,7 +151,6 @@ def new_boq_df(n_rows: int = 40) -> pd.DataFrame:
 
 def recalc_amounts(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
-    # Make sure numeric
     df["Qty"] = pd.to_numeric(df["Qty"], errors="coerce").fillna(0.0)
     df["Rate"] = pd.to_numeric(df["Rate"], errors="coerce").fillna(0.0)
     df["Amount"] = (df["Qty"] * df["Rate"]).round(3)
@@ -169,9 +162,8 @@ def apply_unit_qty_rules(df: pd.DataFrame) -> pd.DataFrame:
     Keeps _QtyBase consistent with user edits.
 
     Rules:
-    - If Unit changed (Unit != _UnitPrev): convert displayed Qty from old unit to new unit
-      while preserving _QtyBase (physical amount).
-      If we have _QtyBase already, we recompute Qty from _QtyBase into new unit.
+    - If Unit changed (Unit != _UnitPrev): preserve physical quantity using _QtyBase
+      and recompute displayed Qty in new unit where convertible.
     - If Qty changed (Qty != _QtyPrev): update _QtyBase from current Qty and Unit.
     """
     df = df.copy()
@@ -186,27 +178,22 @@ def apply_unit_qty_rules(df: pd.DataFrame) -> pd.DataFrame:
         unit_changed = unit_now != unit_prev
         qty_changed = abs(qty_now - qty_prev) > 1e-12
 
-        # If unit changed: preserve physical quantity using _QtyBase
         if unit_changed:
-            # If convertible category, compute Qty from base
             if can_convert(unit_prev, unit_now) and unit_now in UNITS:
-                # If we never had base, derive base using previous unit & previous qty
                 if qty_base == 0.0 and qty_prev != 0.0:
                     qty_base = qty_prev * unit_factor(unit_prev)
 
-                # Convert base -> new unit
-                qty_now = qty_base / unit_factor(unit_now) if unit_factor(unit_now) != 0 else qty_now
-                df.at[idx, "Qty"] = qty_now
+                denom = unit_factor(unit_now)
+                if denom != 0:
+                    qty_now = qty_base / denom
+                    df.at[idx, "Qty"] = qty_now
                 df.at[idx, "_QtyBase"] = qty_base
             else:
-                # Not convertible category: keep numeric qty as-is, reset base using new unit
                 df.at[idx, "_QtyBase"] = qty_now * unit_factor(unit_now) if unit_now in UNITS else qty_now
 
-        # If qty changed (and unit did not change or user edited after unit conversion)
         elif qty_changed:
             df.at[idx, "_QtyBase"] = qty_now * unit_factor(unit_now) if unit_now in UNITS else qty_now
 
-        # Update prev trackers
         df.at[idx, "_UnitPrev"] = unit_now
         df.at[idx, "_QtyPrev"] = float(df.at[idx, "Qty"])
 
