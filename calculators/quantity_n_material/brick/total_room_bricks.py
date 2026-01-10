@@ -1,54 +1,64 @@
 from dataclasses import dataclass
+from core.materials import MaterialQuantity
 
-FT_TO_M = 0.3048
-
-# Approximate brick sizes (including mortar)
 BRICK_WITH_MORTAR_M3 = 0.20 * 0.10 * 0.10
 BRICK_SOLID_M3 = 0.19 * 0.09 * 0.09
 
 
 @dataclass
 class TotalRoomBricksInput:
-    room_length_ft: float
-    room_width_ft: float
-    wall_height_ft: float
-    wall_thickness_ft: float
+    room_length_m: float
+    room_width_m: float
+    wall_height_m: float
+    wall_thickness_m: float
     waste_percent: float = 5.0
-    brick_cost: float = 0.0  # Rs per brick
+    brick_unit_cost: float = 0.0
+    mortar_unit_cost: float = 0.0
 
 
 @dataclass
 class TotalRoomBricksOutput:
-    total_bricks: float
-    mortar_volume_m3: float
+    bricks: MaterialQuantity
+    mortar: MaterialQuantity
     total_cost: float
 
 
-def calculate_total_room_bricks(i: TotalRoomBricksInput) -> TotalRoomBricksOutput:
-    # Convert to meters
-    L = i.room_length_ft * FT_TO_M
-    B = i.room_width_ft * FT_TO_M
-    H = i.wall_height_ft * FT_TO_M
-    T = i.wall_thickness_ft * FT_TO_M
+def calculate_total_room_bricks(
+    i: TotalRoomBricksInput,
+) -> TotalRoomBricksOutput:
+    # Total wall perimeter
+    perimeter_m = 2.0 * (i.room_length_m + i.room_width_m)
 
-    # Approx total wall length = 2(L + B)
-    perimeter_m = 2.0 * (L + B)
-    wall_volume_m3 = perimeter_m * H * T
+    wall_volume = (
+        perimeter_m *
+        i.wall_height_m *
+        i.wall_thickness_m
+    )
 
-    # Brick count (without waste)
-    bricks_raw = wall_volume_m3 / BRICK_WITH_MORTAR_M3
-    total_bricks = bricks_raw * (1.0 + i.waste_percent / 100.0)
+    bricks_raw = wall_volume / BRICK_WITH_MORTAR_M3
+    bricks_qty = bricks_raw * (1 + i.waste_percent / 100)
 
-    # Mortar volume (approx)
-    mortar_volume_m3 = max(
-        wall_volume_m3 - bricks_raw * BRICK_SOLID_M3,
+    mortar_m3 = max(
+        wall_volume - bricks_raw * BRICK_SOLID_M3,
         0.0,
     )
 
-    total_cost = total_bricks * i.brick_cost if i.brick_cost > 0 else 0.0
+    bricks = MaterialQuantity(
+        quantity=bricks_qty,
+        unit="nos",
+        unit_cost=i.brick_unit_cost,
+    )
+
+    mortar = MaterialQuantity(
+        quantity=mortar_m3,
+        unit="m³",
+        unit_cost=i.mortar_unit_cost,
+    )
+
+    total_cost = bricks.total_cost + mortar.total_cost
 
     return TotalRoomBricksOutput(
-        total_bricks=total_bricks,
-        mortar_volume_m3=mortar_volume_m3,
+        bricks=bricks,
+        mortar=mortar,
         total_cost=total_cost,
     )

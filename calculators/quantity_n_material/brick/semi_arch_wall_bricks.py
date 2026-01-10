@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from .arch_wall_bricks import (
+from calculators.quantity_n_material.brick.arch_wall_bricks import (
     ArchWallBricksInput,
     ArchWallBricksOutput,
     calculate_arch_wall_bricks,
@@ -8,11 +8,14 @@ from .arch_wall_bricks import (
 
 @dataclass
 class SemiArchWallBricksInput(ArchWallBricksInput):
+    """
+    Semi-arch wall uses the same geometric approximation
+    as full arch for now.
+    """
     pass
 
 
 def calculate_semi_arch_wall_bricks(
     i: SemiArchWallBricksInput,
 ) -> ArchWallBricksOutput:
-    # Currently same approximation as full arch.
     return calculate_arch_wall_bricks(i)
