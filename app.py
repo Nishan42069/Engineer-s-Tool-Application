@@ -54,12 +54,12 @@ from ui.metal.steel_weights import (
 
 from ui.volume.solid_geometrys import (
     cone_page, cube_page, cylinder_page, frustum_page, half_sphere_page, parabolic_cone_page, prism_page, rectangle_tank_page1,
-    rectangular_prism_page, sphere_page, trapezoid_dumper_page, triangle_dumper_page
+    rectangular_prism_page, sphere_page, trapezoid_dumper_page, triangle_dumper_page, hollow_volume_page
 )
 
 from ui.area.basic_shape import circle_page, ellipse_page, rectangle_page, square_page, trapezoid_page, triangle_page
 
-from ui.area.composite_shape import shape1_page, shape2_page, shape3_page, shape4_page, shape5_page
+from ui.area.composite_shape import shape1_page, shape2_page, shape3_page, shape4_page, shape5_page, hollow_area_volume_page
 
 from ui.conversion.unit_conversion import (
     angle_page, area_page, data_page, force_page, fuel_page, length_page, power_page, pressure_page, speed_page,
@@ -232,6 +232,7 @@ MENUS = {
             "Sphere":sphere_page,
             "Cone": cone_page,
             "Frustum": frustum_page,
+            "Hollow Volume": hollow_volume_page,
             "Parabolic Cone": parabolic_cone_page,
             "Cube": cube_page,
             "Half Sphere": half_sphere_page,
@@ -246,7 +247,8 @@ MENUS = {
             "Rectangle": rectangle_page,
             "Square": square_page,
             "Trapezoid": trapezoid_page,
-            "Triangle": triangle_page
+            "Triangle": triangle_page,
+            "Hollow Area": hollow_area_volume_page
         },
         
         "Composite Shape": {
