@@ -1,29 +1,36 @@
-# ui/brick/circle_wall_bricks_page.py
-
 import streamlit as st
 from calculators.quantity_n_material.brick.circle_wall_bricks import (
     CircleWallInput,
     calculate_circle_wall_bricks,
 )
 
-FT_TO_M = 0.3048
-IN_TO_M = 0.0254
+# -------------------------
+# GLOBAL UNIT CONFIG
+# -------------------------
+UNIT_CONFIG = {
+    "Imperial (ft)": {"unit": "ft", "to_m": 0.3048, "vol_unit": "ft³"},
+    "Imperial (in)": {"unit": "in", "to_m": 0.0254, "vol_unit": "ft³"},
+    "Metric (m)":    {"unit": "m",  "to_m": 1.0,    "vol_unit": "m³"},
+    "Metric (mm)":   {"unit": "mm", "to_m": 0.001,  "vol_unit": "m³"},
+    "Metric (cm)":   {"unit": "cm", "to_m": 0.01,   "vol_unit": "m³"},
+}
 
 
 def render():
     st.header("Circular Wall Bricks Calculator")
 
-    # ---- UNIT SYSTEM ----
-    unit_system = st.selectbox(
+    # -------------------------
+    # UNIT SYSTEM (ONE PLACE)
+    # -------------------------
+    unit_choice = st.selectbox(
         "Unit system",
-        ["Imperial (ft / in)", "Metric (m / mm)"],
+        list(UNIT_CONFIG.keys()),
     )
 
-    is_metric = unit_system.startswith("Metric")
-
-    length_unit = "m" if is_metric else "ft"
-    thickness_unit = "mm" if is_metric else "in"
-    volume_unit = "m³" if is_metric else "ft³"
+    cfg = UNIT_CONFIG[unit_choice]
+    u = cfg["unit"]
+    to_m = cfg["to_m"]
+    volume_unit = cfg["vol_unit"]
 
     # -------------------------
     # GEOMETRY INPUTS
@@ -33,25 +40,25 @@ def render():
     g = st.columns(3)
     with g[0]:
         D = st.number_input(
-            f"Diameter ({length_unit})",
+            f"Diameter ({u})",
             min_value=0.0,
             value=10.0,
         )
     with g[1]:
         H = st.number_input(
-            f"Height ({length_unit})",
+            f"Height ({u})",
             min_value=0.0,
             value=10.0,
         )
     with g[2]:
         T = st.number_input(
-            f"Wall thickness ({thickness_unit})",
+            f"Wall thickness ({u})",
             min_value=0.0,
-            value=150.0 if is_metric else 6.0,
+            value=0.5,
         )
 
     # -------------------------
-    # COST & PARAMETERS
+    # WASTE & COST
     # -------------------------
     st.subheader("Waste & Material Costs (optional)")
 
@@ -75,19 +82,10 @@ def render():
     # CALCULATE
     # -------------------------
     if st.button("Calculate Circular Wall Bricks"):
-        if is_metric:
-            D_m = D
-            H_m = H
-            T_m = T / 1000
-        else:
-            D_m = D * FT_TO_M
-            H_m = H * FT_TO_M
-            T_m = T * IN_TO_M
-
         inp = CircleWallInput(
-            diameter_m=D_m,
-            height_m=H_m,
-            thickness_m=T_m,
+            diameter_m=D * to_m,
+            height_m=H * to_m,
+            thickness_m=T * to_m,
             waste_percent=waste,
             brick_unit_cost=brick_cost,
             mortar_unit_cost=mortar_cost,
@@ -97,8 +95,8 @@ def render():
 
         mortar_qty = (
             out.mortar.quantity
-            if is_metric
-            else out.mortar.quantity / (FT_TO_M ** 3)
+            if volume_unit == "m³"
+            else out.mortar.quantity / (0.3048 ** 3)
         )
 
         # -------------------------

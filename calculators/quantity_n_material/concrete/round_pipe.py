@@ -1,19 +1,17 @@
-# calculators/concrete/round_pipe.py
-
 from dataclasses import dataclass
 import math
-
-FT_TO_M = 0.3048
 
 
 @dataclass
 class RoundPipeInput:
-    outer_diameter_ft: float
-    concrete_thickness_ft: float    # thickness of concrete encasement
-    length_ft: float
+    outer_diameter_m: float
+    encasement_thickness_m: float
+    length_m: float
+
     cement_part: int
     sand_part: int
     aggregate_part: int
+
     density_kgm3: float = 2400.0
     cost_per_m3: float = 0.0
 
@@ -27,17 +25,16 @@ class RoundPipeOutput:
     total_cost: float
 
 
-def calculate_round_pipe_concrete(i: RoundPipeInput) -> RoundPipeOutput:
-    outer_d_m = i.outer_diameter_ft * FT_TO_M
-    thick_m = i.concrete_thickness_ft * FT_TO_M
-    length_m = i.length_ft * FT_TO_M
+def calculate_round_pipe_concrete(
+    i: RoundPipeInput,
+) -> RoundPipeOutput:
+    outer_radius = i.outer_diameter_m / 2.0
+    encased_radius = outer_radius + i.encasement_thickness_m
 
-    encased_outer_d = outer_d_m + 2 * thick_m
+    v_outer = math.pi * encased_radius**2 * i.length_m
+    v_inner = math.pi * outer_radius**2 * i.length_m
 
-    v_outer = math.pi * (encased_outer_d / 2) ** 2 * length_m
-    v_inner = math.pi * (outer_d_m / 2) ** 2 * length_m
-
-    volume_m3 = v_outer - v_inner
+    volume_m3 = max(v_outer - v_inner, 0.0)
 
     total_parts = i.cement_part + i.sand_part + i.aggregate_part
     if total_parts <= 0:
@@ -45,18 +42,18 @@ def calculate_round_pipe_concrete(i: RoundPipeInput) -> RoundPipeOutput:
 
     cement_vol = volume_m3 * i.cement_part / total_parts
     sand_vol = volume_m3 * i.sand_part / total_parts
-    agg_vol = volume_m3 * i.aggregate_part / total_parts
+    aggregate_vol = volume_m3 * i.aggregate_part / total_parts
 
-    cement_weight_kg = cement_vol * i.density_kgm3
-    sand_weight_kg = sand_vol * i.density_kgm3
-    aggregate_weight_kg = agg_vol * i.density_kgm3
+    cement_weight = cement_vol * i.density_kgm3
+    sand_weight = sand_vol * i.density_kgm3
+    aggregate_weight = aggregate_vol * i.density_kgm3
 
     total_cost = volume_m3 * i.cost_per_m3 if i.cost_per_m3 > 0 else 0.0
 
     return RoundPipeOutput(
         volume_m3=volume_m3,
-        cement_weight_kg=cement_weight_kg,
-        sand_weight_kg=sand_weight_kg,
-        aggregate_weight_kg=aggregate_weight_kg,
+        cement_weight_kg=cement_weight,
+        sand_weight_kg=sand_weight,
+        aggregate_weight_kg=aggregate_weight,
         total_cost=total_cost,
     )

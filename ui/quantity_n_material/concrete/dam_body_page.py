@@ -1,123 +1,153 @@
-# ui/concrete/dam_body_page.py
-
 import streamlit as st
 from calculators.quantity_n_material.concrete.dam_body import (
     DamBodyInput,
     calculate_dam_body_concrete,
 )
 
+# -------------------------
+# UNIT CONVERSION TABLES
+# -------------------------
+UNIT_TO_M = {
+    "Imperial (ft)": 0.3048,
+    "Imperial (in)": 0.0254,
+    "Metric (m)": 1.0,
+    "Metric (cm)": 0.01,
+    "Metric (mm)": 0.001,
+}
+
+VOLUME_FROM_M3 = {
+    "Imperial (ft)": 35.3147,
+    "Imperial (in)": 61023.7,
+    "Metric (m)": 1.0,
+    "Metric (cm)": 1_000_000.0,
+    "Metric (mm)": 1_000_000_000.0,
+}
+
 
 def render():
-    st.header("Dam Body Concrete")
+    st.header("Dam Body Concrete Calculator")
 
-    # ---------------------------
-    # Geometry
-    # ---------------------------
-    st.subheader("Geometry")
+    # -------------------------
+    # UNIT SYSTEM
+    # -------------------------
+    unit_system = st.selectbox(
+        "Unit system",
+        [
+            "Imperial (ft)",
+            "Imperial (in)",
+            "Metric (m)",
+            "Metric (cm)",
+            "Metric (mm)",
+        ],
+    )
 
-    g_cols = st.columns(4)
-    with g_cols[0]:
-        top_width_ft = st.number_input(
-            "Top width (ft)",
+    unit_label = unit_system.split("(")[1].replace(")", "")
+    to_m = UNIT_TO_M[unit_system]
+    from_m3 = VOLUME_FROM_M3[unit_system]
+
+    # -------------------------
+    # GEOMETRY
+    # -------------------------
+    st.subheader("Dam Geometry")
+
+    g = st.columns(4)
+    with g[0]:
+        top_w = st.number_input(
+            f"Top width ({unit_label})",
             min_value=0.0,
             value=10.0,
         )
-    with g_cols[1]:
-        base_width_ft = st.number_input(
-            "Base width (ft)",
+    with g[1]:
+        base_w = st.number_input(
+            f"Base width ({unit_label})",
             min_value=0.0,
             value=40.0,
         )
-    with g_cols[2]:
-        height_ft = st.number_input(
-            "Height (ft)",
+    with g[2]:
+        height = st.number_input(
+            f"Height ({unit_label})",
             min_value=0.0,
             value=30.0,
         )
-    with g_cols[3]:
-        length_ft = st.number_input(
-            "Dam length (ft)",
+    with g[3]:
+        length = st.number_input(
+            f"Dam length ({unit_label})",
             min_value=0.0,
             value=100.0,
         )
 
-    # ---------------------------
-    # Mix & Material Properties
-    # ---------------------------
-    st.subheader("Mix & Material Properties")
+    # -------------------------
+    # MIX & MATERIAL PROPERTIES
+    # -------------------------
+    st.subheader("Concrete Mix & Properties")
 
-    # Mix ratio row
-    mix_cols = st.columns(3)
-    with mix_cols[0]:
-        cement_part = st.number_input(
-            "Cement (part)",
-            min_value=1,
-            value=1,
-        )
-    with mix_cols[1]:
-        sand_part = st.number_input(
-            "Sand (part)",
-            min_value=1,
-            value=2,
-        )
-    with mix_cols[2]:
-        aggregate_part = st.number_input(
-            "Aggregate (part)",
-            min_value=1,
-            value=4,
-        )
+    mix = st.columns(3)
+    with mix[0]:
+        cement = st.number_input("Cement (part)", min_value=1, value=1)
+    with mix[1]:
+        sand = st.number_input("Sand (part)", min_value=1, value=2)
+    with mix[2]:
+        aggregate = st.number_input("Aggregate (part)", min_value=1, value=4)
 
-    # Density & cost row
-    prop_cols = st.columns(2)
-    with prop_cols[0]:
-        density_kgm3 = st.number_input(
+    props = st.columns(2)
+    with props[0]:
+        density = st.number_input(
             "Concrete density (kg/m³)",
             min_value=1000.0,
             max_value=3000.0,
             value=2400.0,
         )
-    with prop_cols[1]:
-        cost_per_m3 = st.number_input(
-            "Concrete cost per m³ (Rs.)",
+    with props[1]:
+        cost = st.number_input(
+            "Concrete cost (Rs./m³)",
             min_value=0.0,
             value=0.0,
         )
 
-    # ---------------------------
-    # Action
-    # ---------------------------
-    if st.button("Calculate dam concrete volume"):
+    # -------------------------
+    # CALCULATE
+    # -------------------------
+    if st.button("Calculate Dam Concrete"):
         inp = DamBodyInput(
-            top_width_ft=top_width_ft,
-            base_width_ft=base_width_ft,
-            height_ft=height_ft,
-            length_ft=length_ft,
-            cement_part=cement_part,
-            sand_part=sand_part,
-            aggregate_part=aggregate_part,
-            density_kgm3=density_kgm3,
-            cost_per_m3=cost_per_m3,
+            top_width_m=top_w * to_m,
+            base_width_m=base_w * to_m,
+            height_m=height * to_m,
+            length_m=length * to_m,
+            cement_part=cement,
+            sand_part=sand,
+            aggregate_part=aggregate,
+            density_kgm3=density,
+            cost_per_m3=cost,
         )
+
         out = calculate_dam_body_concrete(inp)
 
-        # ---------------------------
-        # Results
-        # ---------------------------
+        volume_display = out.volume_m3 * from_m3
+
+        # -------------------------
+        # RESULTS
+        # -------------------------
         st.subheader("Results")
 
-        top_cols = st.columns(2)
-        with top_cols[0]:
-            st.metric("Concrete volume (m³)", f"{out.volume_m3:.3f}")
-        with top_cols[1]:
+        top = st.columns(2)
+        with top[0]:
+            st.metric(
+                f"Concrete volume ({unit_label}³)",
+                f"{volume_display:.3f}",
+            )
+        with top[1]:
             if out.total_cost > 0:
-                st.metric("Estimated cost (Rs.)", f"{out.total_cost:,.2f}")
+                st.metric(
+                    "Estimated cost (Rs.)",
+                    f"{out.total_cost:,.2f}",
+                )
             else:
                 st.metric("Estimated cost (Rs.)", "—")
 
-        m_cols = st.columns(3)
-        with m_cols[0]:
+        m = st.columns(3)
+        with m[0]:
             st.metric("Cement weight (kg)", f"{out.cement_weight_kg:.1f}")
-        with m_cols[1]:
+        with m[1]:
             st.metric("Sand weight (kg)", f"{out.sand_weight_kg:.1f}")
-        with m_cols[2]:
+        with m[2]:
             st.metric("Aggregate weight (kg)", f"{out.aggregate_weight_kg:.1f}")

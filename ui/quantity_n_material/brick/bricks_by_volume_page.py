@@ -4,72 +4,76 @@ from calculators.quantity_n_material.brick.bricks_by_volume import (
     calculate_bricks_by_volume,
 )
 
-FT_TO_M = 0.3048
-IN_TO_M = 0.0254
+# -------------------------
+# GLOBAL UNIT CONFIG
+# -------------------------
+UNIT_CONFIG = {
+    "Imperial (ft)": {"unit": "ft", "to_m": 0.3048, "vol_unit": "ft³"},
+    "Imperial (in)": {"unit": "in", "to_m": 0.0254, "vol_unit": "ft³"},
+    "Metric (m)":    {"unit": "m",  "to_m": 1.0,    "vol_unit": "m³"},
+    "Metric (mm)":   {"unit": "mm", "to_m": 0.001,  "vol_unit": "m³"},
+    "Metric (cm)":   {"unit": "cm", "to_m": 0.01,   "vol_unit": "m³"},
+}
 
 
 def render():
     st.header("Bricks by Wall Volume")
 
-    # ---- UNIT SYSTEM ----
-    unit_system = st.selectbox(
+    # -------------------------
+    # UNIT SYSTEM (ONE PLACE)
+    # -------------------------
+    unit_choice = st.selectbox(
         "Unit system",
-        ["Imperial (ft / in)", "Metric (m / mm)"],
+        list(UNIT_CONFIG.keys()),
     )
 
-    is_metric = unit_system.startswith("Metric")
+    cfg = UNIT_CONFIG[unit_choice]
+    u = cfg["unit"]
+    to_m = cfg["to_m"]
+    volume_unit = cfg["vol_unit"]
 
-    length_unit = "m" if is_metric else "ft"
-    thickness_unit = "mm" if is_metric else "in"
-    volume_unit = "m³" if is_metric else "ft³"
-
-    # --------------------------------
-    # GEOMETRY
-    # --------------------------------
+    # -------------------------
+    # WALL DIMENSIONS
+    # -------------------------
     st.subheader("Wall Dimensions")
 
     g = st.columns(3)
     with g[0]:
-        L = st.number_input(f"Length ({length_unit})", min_value=0.0, value=10.0)
+        L = st.number_input(f"Wall length ({u})", min_value=0.0, value=10.0)
     with g[1]:
-        H = st.number_input(f"Height ({length_unit})", min_value=0.0, value=10.0)
+        H = st.number_input(f"Wall height ({u})", min_value=0.0, value=10.0)
     with g[2]:
-        T = st.number_input(
-            f"Thickness ({thickness_unit})",
-            min_value=0.0,
-            value=150.0 if is_metric else 6.0,
-        )
+        T = st.number_input(f"Wall thickness ({u})", min_value=0.0, value=0.5)
 
-    # --------------------------------
-    # COST & PARAMETERS
-    # --------------------------------
+    # -------------------------
+    # WASTE & COST
+    # -------------------------
     st.subheader("Waste & Material Costs (optional)")
 
     p = st.columns(3)
     with p[0]:
         waste = st.number_input("Waste (%)", min_value=0.0, value=5.0)
     with p[1]:
-        brick_cost = st.number_input("Brick cost (Rs./brick)", min_value=0.0, value=0.0)
+        brick_cost = st.number_input(
+            "Brick cost (Rs./brick)",
+            min_value=0.0,
+            value=0.0,
+        )
     with p[2]:
-        mortar_cost = st.number_input("Mortar cost (Rs./m³)", min_value=0.0, value=0.0)
+        mortar_cost = st.number_input(
+            "Mortar cost (Rs./m³)",
+            min_value=0.0,
+            value=0.0,
+        )
 
-    # --------------------------------
+    # -------------------------
     # CALCULATE
-    # --------------------------------
+    # -------------------------
     if st.button("Calculate Bricks"):
-        if is_metric:
-            L_m = L
-            H_m = H
-            T_m = T / 1000
-        else:
-            L_m = L * FT_TO_M
-            H_m = H * FT_TO_M
-            T_m = T * IN_TO_M
-
         inp = BricksByVolumeInput(
-            wall_length_m=L_m,
-            wall_height_m=H_m,
-            wall_thickness_m=T_m,
+            wall_length_m=L * to_m,
+            wall_height_m=H * to_m,
+            wall_thickness_m=T * to_m,
             waste_percent=waste,
             brick_unit_cost=brick_cost,
             mortar_unit_cost=mortar_cost,
@@ -79,13 +83,13 @@ def render():
 
         mortar_qty = (
             out.mortar.quantity
-            if is_metric
-            else out.mortar.quantity / (FT_TO_M ** 3)
+            if volume_unit == "m³"
+            else out.mortar.quantity / (0.3048 ** 3)
         )
 
-        # --------------------------------
+        # -------------------------
         # RESULTS
-        # --------------------------------
+        # -------------------------
         st.subheader("Results")
 
         r1, r2 = st.columns(2)
@@ -101,4 +105,6 @@ def render():
             )
 
         if out.total_cost > 0:
-            st.success(f"Total material cost: Rs. {out.total_cost:,.2f}")
+            st.success(
+                f"Total material cost: Rs. {out.total_cost:,.2f}"
+            )

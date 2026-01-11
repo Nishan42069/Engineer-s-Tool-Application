@@ -1,86 +1,42 @@
-# ui/concrete_page.py
+from dataclasses import dataclass
 
-import streamlit as st
-from calculators.quantity_n_material.concrete.concrete_v import (
-    ConcreteInput,
-    calculate_concrete,
-)
 
-def render():
-    st.header("Concrete by Volume")
+@dataclass
+class ConcreteInput:
+    volume_m3: float
+    cement: int
+    sand: int
+    aggregate: int
+    dry_factor: float = 1.54
+    cement_bag_weight: float = 50.0
 
-    # ---------------------------
-    # Mix & Volume (full-width row)
-    # ---------------------------
-    st.subheader("Mix & Volume")
 
-    mix_cols = st.columns(4)  # 4 equal-width inputs
-    with mix_cols[0]:
-        vol = st.number_input(
-            "Concrete volume (m³)",
-            min_value=0.0,
-            value=5.0,
-        )
-    with mix_cols[1]:
-        cement = st.number_input(
-            "Cement (parts)",
-            min_value=1,
-            value=1,
-        )
-    with mix_cols[2]:
-        sand = st.number_input(
-            "Sand (parts)",
-            min_value=1,
-            value=2,
-        )
-    with mix_cols[3]:
-        agg = st.number_input(
-            "Aggregate (parts)",
-            min_value=1,
-            value=4,
-        )
+@dataclass
+class ConcreteOutput:
+    dry_volume_m3: float
+    cement_bags: float
+    sand_m3: float
+    aggregate_m3: float
 
-    # ---------------------------
-    # Factors (next full-width row)
-    # ---------------------------
-    st.subheader("Factors")
 
-    factor_cols = st.columns(2)  # 2 equal-width inputs
-    with factor_cols[0]:
-        dry_factor = st.number_input(
-            "Dry volume factor",
-            value=1.54,
-        )
-    with factor_cols[1]:
-        bag_weight = st.number_input(
-            "Cement bag weight (kg)",
-            value=50.0,
-        )
+def calculate_concrete(i: ConcreteInput) -> ConcreteOutput:
+    dry_volume = i.volume_m3 * i.dry_factor
 
-    # ---------------------------
-    # Action button
-    # ---------------------------
-    if st.button("Calculate"):
-        inp = ConcreteInput(
-            volume_m3=vol,
-            cement=cement,
-            sand=sand,
-            aggregate=agg,
-            dry_factor=dry_factor,
-            cement_bag_weight=bag_weight,
-        )
-        out = calculate_concrete(inp)
+    total_parts = i.cement + i.sand + i.aggregate
+    if total_parts <= 0:
+        raise ValueError("Mix ratio parts must be greater than zero.")
 
-        # ---------------------------
-        # Results
-        # ---------------------------
-        st.subheader("Results")
+    cement_vol = dry_volume * i.cement / total_parts
+    sand_vol = dry_volume * i.sand / total_parts
+    agg_vol = dry_volume * i.aggregate / total_parts
 
-        r_cols = st.columns(3)
-        with r_cols[0]:
-            st.metric("Dry volume (m³)", f"{out.dry_volume:.3f}")
-            st.metric("Cement (bags)", f"{out.cement_bags:.2f}")
-        with r_cols[1]:
-            st.metric("Sand (m³)", f"{out.sand_m3:.3f}")
-        with r_cols[2]:
-            st.metric("Aggregate (m³)", f"{out.aggregate_m3:.3f}")
+    # Cement density ≈ 1440 kg/m³
+    cement_kg = cement_vol * 1440
+    cement_bags = cement_kg / i.cement_bag_weight
+
+    return ConcreteOutput(
+        dry_volume_m3=dry_volume,
+        cement_bags=cement_bags,
+        sand_m3=sand_vol,
+        aggregate_m3=agg_vol,
+    )

@@ -1,62 +1,67 @@
 from dataclasses import dataclass
-
-FT_TO_M = 0.3048
-MM_TO_M = 0.001
+from core.materials import MaterialQuantity
 
 
 @dataclass
 class BlockworkInput:
-    wall_length_ft: float
-    wall_height_ft: float
-    wall_thickness_ft: float
+    wall_length_m: float
+    wall_height_m: float
+    wall_thickness_m: float
 
-    block_length_mm: float
-    block_height_mm: float
-    block_thickness_mm: float
+    block_length_m: float
+    block_height_m: float
+    block_thickness_m: float
 
-    waste_percent: float = 5.0          # extra blocks for breakage, cutting
-    mortar_ratio_percent: float = 25.0  # % of wall volume as mortar (approx)
-    block_cost: float = 0.0             # Rs per block
+    waste_percent: float = 5.0
+    mortar_ratio_percent: float = 25.0
+    block_unit_cost: float = 0.0
+    mortar_unit_cost: float = 0.0
 
 
 @dataclass
 class BlockworkOutput:
-    total_blocks: float
-    mortar_volume_m3: float
+    blocks: MaterialQuantity
+    mortar: MaterialQuantity
     total_cost: float
 
 
 def calculate_blockwork(i: BlockworkInput) -> BlockworkOutput:
-    # Convert wall dimensions to meters
-    L = i.wall_length_ft * FT_TO_M
-    H = i.wall_height_ft * FT_TO_M
-    T = i.wall_thickness_ft * FT_TO_M
+    wall_volume = (
+        i.wall_length_m *
+        i.wall_height_m *
+        i.wall_thickness_m
+    )
 
-    wall_volume_m3 = L * H * T
+    block_volume = (
+        i.block_length_m *
+        i.block_height_m *
+        i.block_thickness_m
+    )
 
-    # Block volume (assuming size includes mortar joint)
-    bL = i.block_length_mm * MM_TO_M
-    bH = i.block_height_mm * MM_TO_M
-    bT = i.block_thickness_mm * MM_TO_M
-
-    block_volume_m3 = bL * bH * bT
-    if block_volume_m3 <= 0:
+    if block_volume <= 0:
         raise ValueError("Block dimensions must be greater than zero.")
 
-    # Raw block count without waste
-    blocks_raw = wall_volume_m3 / block_volume_m3
+    blocks_raw = wall_volume / block_volume
+    blocks_qty = blocks_raw * (1 + i.waste_percent / 100)
 
-    # Add waste
-    total_blocks = blocks_raw * (1.0 + i.waste_percent / 100.0)
+    mortar_m3 = wall_volume * (i.mortar_ratio_percent / 100)
 
-    # Approx mortar volume as % of wall volume
-    mortar_volume_m3 = wall_volume_m3 * (i.mortar_ratio_percent / 100.0)
+    blocks = MaterialQuantity(
+        quantity=blocks_qty,
+        unit="nos",
+        unit_cost=i.block_unit_cost,
+    )
 
-    # Cost
-    total_cost = total_blocks * i.block_cost if i.block_cost > 0 else 0.0
+    mortar = MaterialQuantity(
+        quantity=mortar_m3,
+        unit="m³",
+        unit_cost=i.mortar_unit_cost,
+    )
+
+    total_cost = blocks.total_cost + mortar.total_cost
 
     return BlockworkOutput(
-        total_blocks=total_blocks,
-        mortar_volume_m3=mortar_volume_m3,
+        blocks=blocks,
+        mortar=mortar,
         total_cost=total_cost,
     )

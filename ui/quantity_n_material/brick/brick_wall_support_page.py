@@ -4,44 +4,55 @@ from calculators.quantity_n_material.brick.brick_wall_support import (
     calculate_brick_wall_support,
 )
 
-FT_TO_M = 0.3048
-IN_TO_M = 0.0254
+# -------------------------
+# GLOBAL UNIT CONFIG
+# -------------------------
+UNIT_CONFIG = {
+    "Imperial (ft)": {"unit": "ft", "to_m": 0.3048, "vol_unit": "ft³"},
+    "Imperial (in)": {"unit": "in", "to_m": 0.0254, "vol_unit": "ft³"},
+    "Metric (m)":    {"unit": "m",  "to_m": 1.0,    "vol_unit": "m³"},
+    "Metric (mm)":   {"unit": "mm", "to_m": 0.001,  "vol_unit": "m³"},
+    "Metric (cm)":   {"unit": "cm", "to_m": 0.01,   "vol_unit": "m³"},
+}
 
 
 def render():
     st.header("Brick Wall Support Calculator")
 
-    # ---- UNIT SYSTEM ----
-    unit_system = st.selectbox(
+    # -------------------------
+    # UNIT SYSTEM (ONE PLACE)
+    # -------------------------
+    unit_choice = st.selectbox(
         "Unit system",
-        ["Imperial (ft / in)", "Metric (m / mm)"],
+        list(UNIT_CONFIG.keys()),
     )
 
-    is_metric = unit_system.startswith("Metric")
+    cfg = UNIT_CONFIG[unit_choice]
+    u = cfg["unit"]
+    to_m = cfg["to_m"]
+    volume_unit = cfg["vol_unit"]
 
-    length_unit = "m" if is_metric else "ft"
-    projection_unit = length_unit
-    height_unit = length_unit
-    volume_unit = "m³" if is_metric else "ft³"
-
+    # -------------------------
+    # SUPPORT GEOMETRY
+    # -------------------------
     st.subheader("Support Geometry")
 
     g = st.columns(4)
     with g[0]:
         w = st.number_input(
-            f"Support width along wall ({length_unit})",
+            f"Support width along wall ({u})",
             min_value=0.0,
             value=2.0,
         )
     with g[1]:
         p = st.number_input(
-            f"Projection from wall ({projection_unit})",
+            f"Projection from wall ({u})",
             min_value=0.0,
             value=1.0,
         )
     with g[2]:
         h = st.number_input(
-            f"Support height ({height_unit})",
+            f"Support height ({u})",
             min_value=0.0,
             value=6.0,
         )
@@ -53,6 +64,9 @@ def render():
             step=1,
         )
 
+    # -------------------------
+    # WASTE & COST
+    # -------------------------
     st.subheader("Waste & Material Costs (optional)")
 
     c = st.columns(3)
@@ -71,21 +85,14 @@ def render():
             value=0.0,
         )
 
+    # -------------------------
+    # CALCULATE
+    # -------------------------
     if st.button("Calculate"):
-        # ---- CONVERT TO METERS ----
-        if is_metric:
-            w_m = w
-            p_m = p
-            h_m = h
-        else:
-            w_m = w * FT_TO_M
-            p_m = p * FT_TO_M
-            h_m = h * FT_TO_M
-
         inp = BrickWallSupportInput(
-            support_width_m=w_m,
-            support_projection_m=p_m,
-            support_height_m=h_m,
+            support_width_m=w * to_m,
+            support_projection_m=p * to_m,
+            support_height_m=h * to_m,
             number_of_supports=n,
             waste_percent=waste,
             brick_unit_cost=brick_cost,
@@ -96,10 +103,13 @@ def render():
 
         mortar_qty = (
             out.mortar.quantity
-            if is_metric
-            else out.mortar.quantity / (FT_TO_M ** 3)
+            if volume_unit == "m³"
+            else out.mortar.quantity / (0.3048 ** 3)
         )
 
+        # -------------------------
+        # RESULTS
+        # -------------------------
         st.subheader("Results")
 
         r1, r2 = st.columns(2)
